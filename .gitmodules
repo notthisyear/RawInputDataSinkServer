@@ -1,0 +1,3 @@
+[submodule "WindowsNativeRawInputWrapper"]
+	path = WindowsNativeRawInputWrapper
+	url = https://github.com/notthisyear/WindowsNativeRawInputWrapper.git

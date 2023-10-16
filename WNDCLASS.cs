@@ -1,9 +1,8 @@
-﻿using System;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 
-namespace RawInputDataSinkServer.InputRaw
+namespace RawInputDataSinkServer
 {
-    delegate IntPtr WndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+    delegate nint WndProc(nint hWnd, uint msg, nint wParam, nint lParam);
 
     [StructLayout(LayoutKind.Sequential)]
     readonly struct WNDCLASS
@@ -30,22 +29,22 @@ namespace RawInputDataSinkServer.InputRaw
         /// <summary>
         /// A handle to the instance that contains the window procedure for the class.
         /// </summary>
-        public IntPtr Instance { get; init; }
+        public nint Instance { get; init; }
 
         /// <summary>
         /// A handle to the class icon. This member must be a handle to an icon resource. If this member is NULL, the system provides a default icon.
         /// </summary>
-        public IntPtr Icon { get; init; }
+        public nint Icon { get; init; }
 
         /// <summary>
         /// A handle to the class cursor. This member must be a handle to a cursor resource. If this member is NULL, an application must explicitly set the cursor shape whenever the mouse moves into the application's window.
         /// </summary>
-        public IntPtr Cursor { get; init; }
+        public nint Cursor { get; init; }
 
         /// <summary>
         /// A handle to the class background brush. This member can be a handle to the physical brush to be used for painting the background, or it can be a color value. A color value must be one of the following standard system colors (the value 1 must be added to the chosen color).
         /// </summary>
-        public IntPtr Background { get; init; }
+        public nint Background { get; init; }
 
         /// <summary>
         /// The resource name of the class menu, as the name appears in the resource file. If you use an integer to identify the menu, use the MAKEINTRESOURCE macro. If this member is NULL, windows belonging to this class have no default menu.
@@ -57,6 +56,6 @@ namespace RawInputDataSinkServer.InputRaw
         ///<para>If lpszClassName is a string, it specifies the window class name. The class name can be any name registered with RegisterClass or RegisterClassEx, or any of the predefined control-class names.</para>
         ///<para>The maximum length for lpszClassName is 256. If lpszClassName is greater than the maximum length, the RegisterClass function will fail.</para>
         /// </summary>
-        public IntPtr ClassName { get; init; }
+        public nint ClassName { get; init; }
     }
 }

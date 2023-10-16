@@ -7,4 +7,14 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Remove="WindowsNativeRawInputWrapper\**" />
+    <EmbeddedResource Remove="WindowsNativeRawInputWrapper\**" />
+    <None Remove="WindowsNativeRawInputWrapper\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="WindowsNativeRawInputWrapper\WindowsNativeRawInputWrapper.csproj" />
+  </ItemGroup>
+
 </Project>

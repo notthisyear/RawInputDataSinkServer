@@ -2,9 +2,8 @@
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
-using RawInputDataSinkServer.InputRaw;
-using RawInputDataSinkServer.InputRaw.InternalTypes;
-using static RawInputDataSinkServer.InputRaw.InputManager;
+using WindowsNativeRawInputWrapper;
+using WindowsNativeRawInputWrapper.Types;
 
 namespace RawInputDataSinkServer
 {
@@ -14,9 +13,9 @@ namespace RawInputDataSinkServer
 
         private const string ClassName = "RawInputDataSinkServerInputWindow";
         private readonly WNDCLASS _wndClass;
-        private readonly ConcurrentQueue<KeyboardEvent> _eventsToSend;
+        private readonly ConcurrentQueue<RawKeyboardInput> _eventsToSend;
 
-        public InputWindow(ConcurrentQueue<KeyboardEvent> eventsToSend)
+        public InputWindow(ConcurrentQueue<RawKeyboardInput> eventsToSend)
         {
             _eventsToSend = eventsToSend;
             _wndClass = new WNDCLASS()
@@ -24,15 +23,13 @@ namespace RawInputDataSinkServer
                 ClassName = Marshal.StringToHGlobalUni(ClassName),
                 WndProc = (hWnd, msg, wParam, lParam) =>
                 {
-                    if (msg == WinApiWrapper.WM_INPUT &&
+                    if (WinApiWrapper.IsInputMessage(msg) &&
                         WinApiWrapper.TryGetRawInput(lParam, out var input, out _) &&
                         input is RawKeyboardInput keyboardInput)
                     {
-                        _eventsToSend.Enqueue(new(keyboardInput.IsKeyUp ? KeyEvent.KeyUp : KeyEvent.KeyDown,
-                        keyboardInput.Header.DeviceHandle,
-                        keyboardInput.ScanCode));
+                        _eventsToSend.Enqueue(keyboardInput);
                     }
-                    return WinApiWrapper.DefWindowProc(hWnd, msg, wParam, lParam);
+                    return User32Interops.DefWindowProc(hWnd, msg, wParam, lParam);
                 }
             };
 
@@ -40,11 +37,11 @@ namespace RawInputDataSinkServer
             var buffer = Marshal.AllocHGlobal(size);
             Marshal.StructureToPtr(_wndClass, buffer, false);
 
-            if (WinApiWrapper.RegisterClassW(buffer) == 0)
+            if (User32Interops.RegisterClassW(buffer) == 0)
                 throw new Win32Exception();
 
             Marshal.FreeHGlobal(buffer);
-            WindowHandle = WinApiWrapper.CreateWindowExW(
+            WindowHandle = User32Interops.CreateWindowExW(
                 0x08000000, // WS_EX_NOACTIVATE
                 ClassName,
                 "",

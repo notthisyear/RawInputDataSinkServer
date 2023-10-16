@@ -8,19 +8,23 @@ using System.Net.Sockets;
 using System.Text.RegularExpressions;
 using System.Threading;
 using RawInputDataSinkServer.Communication;
-using RawInputDataSinkServer.InputRaw;
+using WindowsNativeRawInputWrapper;
+using WindowsNativeRawInputWrapper.Types;
 
 namespace RawInputDataSinkServer
 {
     internal class Program
     {
+        #region Private fields
         private const int TargetPort = 5973;
 
         private static UdpBroadcaster? s_broadcaster;
         private static readonly Thread s_sendQueueMonitor = new(MonitorSendQueue) { IsBackground = true };
-        private static readonly ConcurrentQueue<InputManager.KeyboardEvent> s_eventsToSend = new();
-        private static readonly Dictionary<long, HashSet<Enumerations.KeyboardScanCode>> s_keysCurrentlyDown = new();
+        private static readonly ConcurrentQueue<RawKeyboardInput> s_eventsToSend = new();
+        private static readonly Dictionary<long, HashSet<RawKeyboardInput.KeyboardScanCode>> s_keysCurrentlyDown = new();
         private static bool s_shouldClose = false;
+        #endregion
+
         public static void Main(string[] args)
         {
             var addresses = FetchLocalIpv4Addresses();
@@ -37,56 +41,67 @@ namespace RawInputDataSinkServer
             s_sendQueueMonitor.Start();
 
             var inputWindow = new InputWindow(s_eventsToSend);
-            if (!InputManager.TryRegisterWindowForKeyboardInput(inputWindow.WindowHandle, out var errorMessage))
+            if (!WinApiWrapper.TryRegisterForKeyboardInput(inputWindow.WindowHandle, out var errorMessage))
                 throw new InvalidOperationException(errorMessage);
 
             Console.WriteLine($"Input sink setup, listening...");
-            while (WinApiWrapper.GetMessage(out var msg, IntPtr.Zero, 0, 0))
+            while (User32Interops.GetMessage(out var msg, IntPtr.Zero, 0, 0))
             {
-                WinApiWrapper.TranslateMessage(msg);
-                WinApiWrapper.DispatchMessage(msg);
+                User32Interops.TranslateMessage(msg);
+                User32Interops.DispatchMessage(msg);
             }
             s_shouldClose = true;
             s_broadcaster.Dispose();
         }
 
+        #region Private methods
         private static void MonitorSendQueue(object? obj)
         {
             while (!s_shouldClose)
             {
-                if (s_eventsToSend.TryDequeue(out var newEvent))
+                if (s_eventsToSend.TryDequeue(out var newInput))
                 {
-                    if (newEvent.Event == InputManager.KeyEvent.KeyDown)
+                    var key = newInput.ScanCode;
+                    var deviceId = newInput.Header.DeviceHandle;
+
+                    if (newInput.IsKeyDown)
                     {
-                        if (s_keysCurrentlyDown.TryGetValue(newEvent.SourceId, out var keysHeldDown))
+                        if (s_keysCurrentlyDown.TryGetValue(deviceId, out var keysHeldDown))
                         {
-                            if (keysHeldDown.Contains(newEvent.Key))
+                            if (keysHeldDown.Contains(key))
                                 continue;
                         }
                         else
                         {
-                            s_keysCurrentlyDown.Add(newEvent.SourceId, new());
-                            keysHeldDown = s_keysCurrentlyDown[newEvent.SourceId];
+                            s_keysCurrentlyDown.Add(deviceId, new());
+                            keysHeldDown = s_keysCurrentlyDown[deviceId];
                         }
-                        keysHeldDown.Add(newEvent.Key);
+                        keysHeldDown.Add(key);
                     }
                     else
                     {
-                        if (s_keysCurrentlyDown.TryGetValue(newEvent.SourceId, out var keysHeldDown) && keysHeldDown.Contains(newEvent.Key))
-                            keysHeldDown.Remove(newEvent.Key);
+                        if (s_keysCurrentlyDown.TryGetValue(deviceId, out var keysHeldDown) && keysHeldDown.Contains(key))
+                            keysHeldDown.Remove(key);
                     }
 
                     var msg = new byte[11];
-                    msg[0] = (byte)newEvent.Event;
-                    for (var i = 0; i < 8; i++)
-                        msg[i + 1] = (byte)((newEvent.SourceId >> (8 * i)) & 0xff);
-                    msg[9] = (byte)((ushort)newEvent.Key & 0xff);
-                    msg[10] = (byte)(((ushort)newEvent.Key >> 8) & 0xff);
+                    Serialize(msg, (byte)(newInput.IsKeyDown ? 0x01 : 0x00), deviceId, (ushort)key);
 
                     if (!s_broadcaster!.TrySendMessage(msg))
                         Console.WriteLine("Failed to send message");
                 }
             }
+        }
+
+        private static void Serialize(byte[] data, byte eventType, long id, ushort key)
+        {
+            var idx = 0;
+            data[idx++] = eventType;
+            for (var i = 0; i < 8; i++)
+                data[idx++] = (byte)((id >> (8 * i)) & 0xff);
+
+            data[idx++] = (byte)(key & 0xff);
+            data[idx] = (byte)((key >> 8) & 0xff);
         }
 
         private static ReadOnlyCollection<IPAddress> FetchLocalIpv4Addresses()
@@ -116,5 +131,6 @@ namespace RawInputDataSinkServer
             return possibleAddresses.Count > 0 ? possibleAddresses.First() : addresses.First();
 
         }
+        #endregion
     }
 }
