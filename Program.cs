@@ -89,6 +89,10 @@ namespace RawInputDataSinkServer
 
                     if (!s_broadcaster!.TrySendMessage(msg))
                         Console.WriteLine("Failed to send message");
+#if DEBUG
+                    else
+                        Console.WriteLine($"Sent key event {(newInput.IsKeyDown ? "down" : "up")} for key {key} ({deviceId})");
+#endif
                 }
             }
         }
