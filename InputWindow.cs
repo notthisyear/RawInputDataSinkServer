@@ -14,23 +14,24 @@ namespace RawInputDataSinkServer
         private const string ClassName = "RawInputDataSinkServerInputWindow";
         private readonly WNDCLASS _wndClass;
         private readonly ConcurrentQueue<RawKeyboardInput> _eventsToSend;
-
+        private readonly WndProc _wndProc;
         public InputWindow(ConcurrentQueue<RawKeyboardInput> eventsToSend)
         {
             _eventsToSend = eventsToSend;
+            _wndProc = (hWnd, msg, wParam, lParam) =>
+            {
+                if (WinApiWrapper.IsInputMessage(msg) &&
+                    WinApiWrapper.TryGetRawInput(lParam, out var input, out _) &&
+                    input is RawKeyboardInput keyboardInput)
+                {
+                    _eventsToSend.Enqueue(keyboardInput);
+                }
+                return User32Interops.DefWindowProc(hWnd, msg, wParam, lParam);
+            };
             _wndClass = new WNDCLASS()
             {
                 ClassName = Marshal.StringToHGlobalUni(ClassName),
-                WndProc = (hWnd, msg, wParam, lParam) =>
-                {
-                    if (WinApiWrapper.IsInputMessage(msg) &&
-                        WinApiWrapper.TryGetRawInput(lParam, out var input, out _) &&
-                        input is RawKeyboardInput keyboardInput)
-                    {
-                        _eventsToSend.Enqueue(keyboardInput);
-                    }
-                    return User32Interops.DefWindowProc(hWnd, msg, wParam, lParam);
-                }
+                WndProc = _wndProc
             };
 
             var size = Marshal.SizeOf(typeof(WNDCLASS));

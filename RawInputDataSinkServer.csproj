@@ -14,7 +14,17 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="CommandLineParser" Version="2.9.1" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="WindowsNativeRawInputWrapper\WindowsNativeRawInputWrapper.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="license\CommandLineParse 2.9.1.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>
