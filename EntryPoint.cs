@@ -93,6 +93,7 @@ namespace RawInputDataSinkServer
                     if (s_isVerbose)
                         Console.WriteLine($"Sent key event {(newInput.IsKeyDown ? "down" : "up")} for key {key} ({deviceId})");
                 }
+                Thread.Sleep(10);
             }
         }
 
